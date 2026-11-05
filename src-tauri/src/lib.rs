@@ -1,9 +1,11 @@
 pub mod audio;
 pub mod config;
 pub mod inject;
+pub mod log;
 mod overlay;
 pub mod pipeline;
 mod settings_cmd;
+pub mod sound;
 mod state;
 pub mod stt;
 mod system;
@@ -24,7 +26,7 @@ fn handle_cli(app: &AppHandle, args: &[String]) {
         Some("cancel") => state::cancel(app),
         Some("settings") => open_settings(app),
         Some("quit") => app.exit(0),
-        Some(other) => eprintln!("my-whisper: unknown command `{other}`"),
+        Some(other) => log::warn(&format!("unknown command `{other}`")),
         None => {}
     }
 }
@@ -110,6 +112,13 @@ pub fn run() {
             settings_cmd::set_autostart,
         ])
         .setup(|app| {
+            // First start of an installed build (e.g. from the .deb): start at login by default.
+            if !cfg!(debug_assertions) && !config::settings_path().exists() {
+                if let Err(e) = system::autostart::set(true) {
+                    log::warn(&format!("autostart: {e}"));
+                }
+            }
+            log::info(&format!("started v{}", env!("CARGO_PKG_VERSION")));
             build_tray(app.handle())?;
             system::shortcut::ensure();
             // Allow `my-whisper toggle` as the very first launch too.

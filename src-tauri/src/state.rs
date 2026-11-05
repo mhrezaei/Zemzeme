@@ -12,6 +12,7 @@ use crate::config::Config;
 use crate::inject::{Injector, Outcome};
 use crate::overlay;
 use crate::pipeline;
+use crate::sound::{self, Chime};
 use crate::stt::{OpenRouter, SpeechToText};
 
 /// Recordings shorter than this are treated as accidental presses.
@@ -87,7 +88,8 @@ pub fn cancel(app: &AppHandle) {
 }
 
 fn fail(app: &AppHandle, session: u64, message: String) {
-    eprintln!("my-whisper: {message}");
+    chime(Chime::Error);
+    crate::log::warn(&message);
     set_phase(app, Phase::Error, Some(message));
     let app = app.clone();
     std::thread::spawn(move || {
@@ -111,6 +113,7 @@ fn start(app: &AppHandle) {
         let _ = level_app.emit("level", level);
     }) {
         Ok(rec) => {
+            chime(Chime::Start);
             *state.recorder.lock().unwrap() = Some(rec);
             set_phase(app, Phase::Recording, None);
         }
@@ -123,6 +126,7 @@ fn stop(app: &AppHandle) {
     let Some(recorder) = state.recorder.lock().unwrap().take() else { return };
     let session = *state.session.lock().unwrap();
     set_phase(app, Phase::Transcribing, None);
+    chime(Chime::Stop);
 
     let app = app.clone();
     std::thread::spawn(move || {
@@ -185,17 +189,18 @@ fn transcribe(app: &AppHandle, recording: &Recording) -> Result<String, String> 
     if cfg!(debug_assertions) && !cfg.keep_audio {
         delete_debug_copy(app);
     }
-    eprintln!(
-        "my-whisper: {:.1}s audio → {} in {:.1}s, cost {}: {}",
+    crate::log::info(&format!(
+        "{:.1}s audio → {} in {:.1}s, cost {}, {} chars",
         recording.duration_secs(),
         cfg.model,
         started.elapsed().as_secs_f32(),
         result.cost.map(|c| format!("${c:.5}")).unwrap_or_else(|| "?".into()),
-        result.text
-    );
+        result.text.chars().count()
+    ));
+    crate::log::private(&format!("transcript: {}", result.text));
     let text = pipeline::process(&result.text, &cfg);
     if cfg.cleanup {
-        eprintln!("my-whisper: after cleanup: {text}");
+        crate::log::private(&format!("after cleanup: {text}"));
     }
     Ok(text)
 }
@@ -218,7 +223,7 @@ fn keep_recording(app: &AppHandle, wav: &[u8]) {
         .unwrap_or(0);
     let path = dir.join(format!("{secs}.wav"));
     if std::fs::write(&path, wav).is_ok() {
-        eprintln!("my-whisper: kept recording {}", path.display());
+        crate::log::info(&format!("kept recording {}", path.display()));
     }
 }
 
@@ -226,5 +231,11 @@ fn save_debug_copy(app: &AppHandle, wav: &[u8]) {
     if let Ok(dir) = app.path().app_cache_dir() {
         let _ = std::fs::create_dir_all(&dir);
         let _ = std::fs::write(dir.join("last.wav"), wav);
+    }
+}
+
+fn chime(c: Chime) {
+    if Config::load().sounds {
+        sound::play(c);
     }
 }

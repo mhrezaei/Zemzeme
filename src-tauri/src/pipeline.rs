@@ -58,15 +58,16 @@ pub fn process(text: &str, cfg: &Config) -> String {
     let started = std::time::Instant::now();
     match cleanup(&text, cfg) {
         Ok(cleaned) if plausible(&text, &cleaned) => {
-            eprintln!("my-whisper: cleanup in {:.1}s", started.elapsed().as_secs_f32());
+            crate::log::info(&format!("cleanup in {:.1}s", started.elapsed().as_secs_f32()));
             cleaned
         }
         Ok(cleaned) => {
-            eprintln!("my-whisper: cleanup result rejected, using raw text: {cleaned}");
+            crate::log::warn("cleanup result rejected, using raw text");
+            crate::log::private(&format!("rejected cleanup: {cleaned}"));
             text
         }
         Err(e) => {
-            eprintln!("my-whisper: cleanup failed, using raw text: {e}");
+            crate::log::warn(&format!("cleanup failed, using raw text: {e}"));
             text
         }
     }

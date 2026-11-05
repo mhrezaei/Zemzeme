@@ -16,6 +16,7 @@ pub struct SettingsView {
     /// e.g. "sk-or-v1-…a1b2"
     api_key_hint: String,
     settings_path: String,
+    log_path: String,
 }
 
 #[tauri::command]
@@ -25,6 +26,7 @@ pub fn get_settings() -> SettingsView {
         has_api_key: !config.api_key.trim().is_empty(),
         api_key_hint: api_key::hint(&config.api_key),
         settings_path: crate::config::settings_path().display().to_string(),
+        log_path: crate::log::path().display().to_string(),
         config,
     }
 }

@@ -114,7 +114,7 @@ fn find_device(id: Option<&str>) -> Result<cpal::Device, String> {
         if let Some(dev) = id.parse().ok().and_then(|id| host.device_by_id(&id)) {
             return Ok(dev);
         }
-        eprintln!("my-whisper: microphone `{id}` not found, using default");
+        crate::log::warn(&format!("microphone `{id}` not found, using default"));
     }
     host.default_input_device().ok_or_else(|| "No microphone found".to_string())
 }
@@ -263,7 +263,7 @@ fn open_stream(
     let channels = config.channels as usize;
     let rate = config.sample_rate;
 
-    let err_fn = |e: cpal::Error| eprintln!("my-whisper: audio stream error: {e}");
+    let err_fn = |e: cpal::Error| crate::log::warn(&format!("audio stream error: {e}"));
 
     fn build<T>(
         device: &cpal::Device,

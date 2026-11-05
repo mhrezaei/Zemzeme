@@ -59,7 +59,7 @@ impl Injector {
         let (kb, err) = match keyboard::Keyboard::new() {
             Ok(k) => (Some(k), None),
             Err(e) => {
-                eprintln!("my-whisper: virtual keyboard unavailable: {e}");
+                crate::log::warn(&format!("virtual keyboard unavailable: {e}"));
                 (None, Some(e))
             }
         };
@@ -85,7 +85,7 @@ impl Injector {
 
         if let Err(e) = pressed {
             // Leave the text on the clipboard so the user can paste it by hand.
-            eprintln!("my-whisper: paste key failed: {e}");
+            crate::log::warn(&format!("paste key failed: {e}"));
             return Ok(Outcome::CopiedOnly(e));
         }
 

@@ -43,6 +43,8 @@ pub struct Config {
     pub vocabulary: String,
     /// Keep every recording on disk (for troubleshooting). Off by default.
     pub keep_audio: bool,
+    /// Short chimes when recording starts and stops.
+    pub sounds: bool,
 }
 
 impl Default for Config {
@@ -57,6 +59,7 @@ impl Default for Config {
             cleanup_model: DEFAULT_CLEANUP_MODEL.into(),
             vocabulary: String::new(),
             keep_audio: false,
+            sounds: true,
         }
     }
 }
@@ -76,7 +79,7 @@ impl Config {
         let path = settings_path();
         let mut cfg = match std::fs::read_to_string(&path) {
             Ok(s) => serde_json::from_str(&s).unwrap_or_else(|e| {
-                eprintln!("my-whisper: bad settings file {}: {e}", path.display());
+                crate::log::warn(&format!("bad settings file {}: {e}", path.display()));
                 Self::default()
             }),
             Err(_) => {
@@ -112,6 +115,7 @@ impl Config {
             cleanup_model: var("MY_WHISPER_CLEANUP_MODEL").unwrap_or(d.cleanup_model),
             vocabulary: var("MY_WHISPER_VOCAB").unwrap_or_default(),
             keep_audio: var("MY_WHISPER_KEEP_AUDIO").map(|v| parse_bool(&v)).unwrap_or(false),
+            sounds: d.sounds,
         }
     }
 

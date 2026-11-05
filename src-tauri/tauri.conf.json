@@ -43,13 +43,31 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "deb"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "shortDescription": "Speech to text at your cursor",
+    "longDescription": "Press a shortcut, speak, and the text is typed where your cursor is. Uses OpenRouter speech-to-text models.",
+    "category": "Utility",
+    "linux": {
+      "deb": {
+        "depends": [
+          "pipewire-bin"
+        ],
+        "section": "utils",
+        "files": {
+          "/usr/lib/udev/rules.d/70-my-whisper-uinput.rules": "../packaging/70-my-whisper-uinput.rules"
+        },
+        "postInstallScript": "../packaging/postinst.sh",
+        "postRemoveScript": "../packaging/postrm.sh"
+      }
+    }
   }
 }

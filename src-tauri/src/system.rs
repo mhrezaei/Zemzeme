@@ -84,10 +84,10 @@ pub mod shortcut {
         let binding = match get() {
             Ok(Some(b)) => b,
             Ok(None) => DEFAULT_SHORTCUT.to_string(),
-            Err(e) => return eprintln!("my-whisper: can't read shortcut: {e}"),
+            Err(e) => return crate::log::warn(&format!("can't read shortcut: {e}")),
         };
         if let Err(e) = set(&binding) {
-            eprintln!("my-whisper: can't register shortcut: {e}");
+            crate::log::warn(&format!("can't register shortcut: {e}"));
         }
     }
 }

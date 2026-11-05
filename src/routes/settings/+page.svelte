@@ -13,11 +13,13 @@
     cleanup_model: string;
     vocabulary: string;
     keep_audio: boolean;
+    sounds: boolean;
   }
   interface View extends Settings {
     has_api_key: boolean;
     api_key_hint: string;
     settings_path: string;
+    log_path: string;
   }
   interface Mic { id: string; name: string; is_default: boolean }
   interface KeyInfo { usage: number; usage_daily: number; limit_remaining: number | null }
@@ -129,6 +131,7 @@
   let hasKey = $state(false);
   let keyHint = $state("");
   let settingsPath = $state("");
+  let logPath = $state("");
   let mics = $state<Mic[]>([]);
 
   let keyInput = $state("");
@@ -155,7 +158,8 @@
     hasKey = v.has_api_key;
     keyHint = v.api_key_hint;
     settingsPath = v.settings_path;
-    const { has_api_key, api_key_hint, settings_path, ...rest } = v;
+    logPath = v.log_path;
+    const { has_api_key, api_key_hint, settings_path, log_path, ...rest } = v;
     s = rest;
     sttCustom = !isPreset(STT_MODELS, rest.model);
     cleanupCustom = !isPreset(CLEANUP_MODELS, rest.cleanup_model);
@@ -420,10 +424,15 @@
     <section>
       <h2>Advanced</h2>
       <label class="switch">
+        <input type="checkbox" bind:checked={s.sounds} />
+        <span>Play a sound when recording starts and stops</span>
+      </label>
+      <label class="switch">
         <input type="checkbox" bind:checked={s.keep_audio} />
         <span>Keep recordings on disk (for troubleshooting)</span>
       </label>
       <p class="hint">Settings file: <code>{settingsPath}</code></p>
+      <p class="hint">Log (no transcripts): <code>{logPath}</code></p>
     </section>
   {:else}
     <p class="hint">Loading…</p>

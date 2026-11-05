@@ -127,7 +127,7 @@ impl SpeechToText for OpenRouter {
                 .and_then(|b| b.error)
                 .and_then(|e| e.message)
                 .unwrap_or_else(|| text.chars().take(200).collect());
-            eprintln!("my-whisper: OpenRouter {status}: {detail}");
+            crate::log::warn(&format!("OpenRouter {status}: {detail}"));
             return Err(match status.as_u16() {
                 401 => "Invalid API key".into(),
                 402 => "Out of OpenRouter credits".into(),
