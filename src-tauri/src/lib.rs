@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod config;
+pub mod inject;
 mod overlay;
 pub mod pipeline;
 mod state;
@@ -95,6 +96,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::new())
+        .manage(inject::Injector::new())
         .invoke_handler(tauri::generate_handler![
             toggle,
             cancel,

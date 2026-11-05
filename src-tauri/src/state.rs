@@ -9,6 +9,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::audio::{Recorder, Recording};
 use crate::config::Config;
+use crate::inject::{Injector, Outcome};
 use crate::overlay;
 use crate::pipeline;
 use crate::stt::{OpenRouter, SpeechToText};
@@ -152,12 +153,15 @@ fn stop(app: &AppHandle) {
             return fail(&app, session, "No speech detected".into());
         }
 
-        // Phase 5 pastes the text at the cursor. Until then, show it briefly.
-        set_phase(&app, Phase::Pasting, Some(text));
-        std::thread::sleep(Duration::from_millis(2500));
-        if app.state::<AppState>().is_current(session) {
-            set_phase(&app, Phase::Idle, None);
-            overlay::hide(&app);
+        set_phase(&app, Phase::Pasting, None);
+        let key = Config::load().paste_key;
+        match app.state::<Injector>().paste(&text, key) {
+            Ok(Outcome::Pasted) => {
+                set_phase(&app, Phase::Idle, None);
+                overlay::hide(&app);
+            }
+            Ok(Outcome::CopiedOnly(_)) => fail(&app, session, "Copied — press Ctrl+V".into()),
+            Err(e) => fail(&app, session, e),
         }
     });
 }
@@ -169,11 +173,16 @@ fn transcribe(app: &AppHandle, recording: &Recording) -> Result<String, String> 
     }
 
     let cfg = Config::load();
-    let lang = Some(cfg.language).filter(|l| !l.is_empty());
-    let stt = OpenRouter::new(cfg.api_key, cfg.model.clone(), lang);
+    let lang = Some(cfg.language.clone()).filter(|l| !l.is_empty());
+    let stt = OpenRouter::new(cfg.api_key.clone(), cfg.model.clone(), lang)
+        .with_prompt(cfg.stt_prompt());
 
     let started = Instant::now();
     let result = stt.transcribe(&wav, "wav")?;
+    // Success: no reason to keep the audio on disk.
+    if cfg!(debug_assertions) {
+        delete_debug_copy(app);
+    }
     eprintln!(
         "my-whisper: {:.1}s audio → {} in {:.1}s, cost {}: {}",
         recording.duration_secs(),
@@ -182,10 +191,21 @@ fn transcribe(app: &AppHandle, recording: &Recording) -> Result<String, String> 
         result.cost.map(|c| format!("${c:.5}")).unwrap_or_else(|| "?".into()),
         result.text
     );
-    Ok(pipeline::process(&result.text))
+    let text = pipeline::process(&result.text, &cfg);
+    if cfg.cleanup {
+        eprintln!("my-whisper: after cleanup: {text}");
+    }
+    Ok(text)
 }
 
-/// Keep the last recording around in dev builds to debug audio issues.
+/// Dev builds only: the last recording stays on disk only if transcription
+/// failed, so it can be inspected. Release builds never write audio to disk.
+fn delete_debug_copy(app: &AppHandle) {
+    if let Ok(dir) = app.path().app_cache_dir() {
+        let _ = std::fs::remove_file(dir.join("last.wav"));
+    }
+}
+
 fn save_debug_copy(app: &AppHandle, wav: &[u8]) {
     if let Ok(dir) = app.path().app_cache_dir() {
         let _ = std::fs::create_dir_all(&dir);

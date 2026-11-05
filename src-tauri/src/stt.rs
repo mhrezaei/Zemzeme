@@ -29,6 +29,8 @@ pub struct OpenRouter {
     pub model: String,
     /// ISO-639-1 code such as "fa"; `None` lets the model detect it.
     pub language: Option<String>,
+    /// Hint text for the model (spelling, vocabulary). Only some providers use it.
+    pub prompt: Option<String>,
     pub base_url: String,
 }
 
@@ -36,7 +38,12 @@ impl OpenRouter {
     pub const DEFAULT_BASE_URL: &'static str = "https://openrouter.ai/api/v1";
 
     pub fn new(api_key: String, model: String, language: Option<String>) -> Self {
-        Self { api_key, model, language, base_url: Self::DEFAULT_BASE_URL.into() }
+        Self { api_key, model, language, prompt: None, base_url: Self::DEFAULT_BASE_URL.into() }
+    }
+
+    pub fn with_prompt(mut self, prompt: Option<String>) -> Self {
+        self.prompt = prompt.filter(|p| !p.trim().is_empty());
+        self
     }
 }
 
@@ -77,6 +84,17 @@ impl SpeechToText for OpenRouter {
         });
         if let Some(lang) = self.language.as_deref().filter(|l| !l.is_empty()) {
             body["language"] = json!(lang);
+        }
+        // OpenRouter has no top-level prompt for transcription; it is passed
+        // per provider. OpenAI and Groq both take a `prompt` field. Only the
+        // serving provider's entry is forwarded, so listing both is safe.
+        if let Some(prompt) = &self.prompt {
+            body["provider"] = json!({
+                "options": {
+                    "openai": { "prompt": prompt },
+                    "groq": { "prompt": prompt },
+                }
+            });
         }
 
         let client = reqwest::blocking::Client::builder()
