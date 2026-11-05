@@ -11,3 +11,4 @@ vite.config.ts.timestamp-*
 
 # my-whisper
 *.wav
+bun.lock

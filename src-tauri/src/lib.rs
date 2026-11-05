@@ -1,3 +1,4 @@
+pub mod audio;
 mod overlay;
 mod state;
 
@@ -50,6 +51,11 @@ fn current_phase(app: AppHandle) -> Phase {
     app.state::<AppState>().phase()
 }
 
+#[tauri::command]
+fn list_microphones() -> Vec<audio::Microphone> {
+    audio::list_microphones()
+}
+
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let toggle_i = MenuItem::with_id(app, "toggle", "Start / stop recording", true, None::<&str>)?;
     let settings_i = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
@@ -86,7 +92,13 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::new())
-        .invoke_handler(tauri::generate_handler![toggle, cancel, show_settings, current_phase])
+        .invoke_handler(tauri::generate_handler![
+            toggle,
+            cancel,
+            show_settings,
+            current_phase,
+            list_microphones
+        ])
         .setup(|app| {
             build_tray(app.handle())?;
             // Allow `my-whisper toggle` as the very first launch too.

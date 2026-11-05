@@ -10,5 +10,14 @@ fn main() {
         unsafe { std::env::set_var("GDK_BACKEND", "x11") };
     }
 
+    // `my-whisper mics` lists microphones without starting the app.
+    if std::env::args().nth(1).as_deref() == Some("mics") {
+        for m in my_whisper_lib::audio::list_microphones() {
+            let mark = if m.is_default { "*" } else { " " };
+            println!("{mark} {}\n    id: {}", m.name, m.id);
+        }
+        return;
+    }
+
     my_whisper_lib::run()
 }

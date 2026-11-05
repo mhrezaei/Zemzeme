@@ -9,6 +9,9 @@
   let message = $state<string | null>(null);
   let startedAt = $state(0);
   let now = $state(Date.now());
+  // Recent mic levels (0..1), newest last, drawn as bars.
+  const BARS = 7;
+  let levels = $state<number[]>(Array(BARS).fill(0));
 
   const elapsed = $derived(
     phase === "recording" ? Math.max(0, Math.floor((now - startedAt) / 1000)) : 0,
@@ -21,13 +24,20 @@
     invoke<Phase>("current_phase").then((p) => (phase = p));
     const tick = setInterval(() => (now = Date.now()), 250);
     const unlisten = listen<{ phase: Phase; message: string | null }>("state", (e) => {
-      if (e.payload.phase === "recording" && phase !== "recording") startedAt = Date.now();
+      if (e.payload.phase === "recording" && phase !== "recording") {
+        startedAt = Date.now();
+        levels = Array(BARS).fill(0);
+      }
       phase = e.payload.phase;
       message = e.payload.message;
+    });
+    const unlistenLevel = listen<number>("level", (e) => {
+      levels = [...levels.slice(1), e.payload];
     });
     return () => {
       clearInterval(tick);
       unlisten.then((f) => f());
+      unlistenLevel.then((f) => f());
     };
   });
 </script>
@@ -37,7 +47,7 @@
     {#if phase === "recording"}
       <span class="dot"></span>
       <div class="bars">
-        {#each Array(5) as _, i}<span style="animation-delay:{i * 0.12}s"></span>{/each}
+        {#each levels as l}<span style="transform:scaleY({0.12 + l * 0.88})"></span>{/each}
       </div>
     {:else if phase === "transcribing" || phase === "pasting"}
       <span class="spinner"></span>
@@ -94,7 +104,7 @@
   .bars { display: flex; align-items: center; gap: 3px; height: 22px; }
   .bars span {
     width: 3px; height: 100%; border-radius: 2px; background: #9fa8ff;
-    animation: wave 0.9s ease-in-out infinite;
+    transition: transform 0.08s linear;
   }
   .spinner {
     width: 16px; height: 16px; border-radius: 50%;
@@ -118,6 +128,5 @@
   button:hover { background: rgba(255,255,255,0.14); }
   .stop span { width: 10px; height: 10px; border-radius: 2px; background: #ff4d5e; }
   @keyframes pulse { 50% { opacity: 0.35; } }
-  @keyframes wave { 0%,100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
