@@ -24,6 +24,8 @@ pub struct Config {
     pub cleanup_model: String,
     /// Comma-separated words to spell exactly (names, jargon).
     pub vocabulary: String,
+    /// Keep every recording on disk (for troubleshooting). Off by default.
+    pub keep_audio: bool,
 }
 
 fn parse_bool(v: &str) -> bool {
@@ -43,6 +45,7 @@ impl Config {
             cleanup_model: var("MY_WHISPER_CLEANUP_MODEL")
                 .unwrap_or_else(|| DEFAULT_CLEANUP_MODEL.into()),
             vocabulary: var("MY_WHISPER_VOCAB").unwrap_or_default(),
+            keep_audio: var("MY_WHISPER_KEEP_AUDIO").map(|v| parse_bool(&v)).unwrap_or(false),
         }
     }
 
@@ -80,6 +83,7 @@ mod tests {
             cleanup: true,
             cleanup_model: DEFAULT_CLEANUP_MODEL.into(),
             vocabulary: vocabulary.into(),
+            keep_audio: false,
         }
     }
 

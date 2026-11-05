@@ -15,14 +15,34 @@ use crate::config::Config;
 
 const CLEANUP_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// Tested on Persian dictation: fixed commit/record/Space/API/OpenRouter and
-/// misheard "کیک" → "گیگ" without changing other words.
-const CLEANUP_SYSTEM: &str = "You fix speech-to-text output. The text is Persian dictation. \
-Rewrite English words and technical terms that were transliterated into Persian letters \
-back into Latin script with correct English spelling (e.g. کامیت → commit, اسپیس → Space, \
-ای پی آی → API, اوپن روتر → OpenRouter). Keep everything else exactly as spoken: \
-do not translate, summarize, rephrase, or answer. Fix obvious misheard words only when the \
-intended word is clear from context. Output only the corrected text.";
+/// v2, tested on five real dictations with gemini-3.1-flash-lite: converted
+/// CPU, RAM, bottleneck, Windows, record, commit, deploy, Docker in place and
+/// left plain Persian alone. v1 missed some terms and added "(bottleneck)"
+/// in parentheses, hence the explicit rules and examples.
+const CLEANUP_SYSTEM: &str = "You post-process Persian speech-to-text output.
+
+Task: find English words and technical terms that the speech model wrote with Persian letters, \
+and replace each one in place with the English word in Latin letters.
+
+Rules:
+- Replace in place. Never keep the Persian spelling next to the English one, never add parentheses, notes, or explanations.
+- Convert every such term, including common ones: brand and product names (Windows, Docker), \
+computer terms (CPU, RAM, bottleneck, deploy, commit, record, switch), keys (Alt, Space, Ctrl).
+- Keep very common Persian loanwords that are normal in written Persian (فایل، تیم، سرور، ایمیل).
+- Keep Persian grammar attached to the word («رکورد می‌کنی» → «record می‌کنی»).
+- Fix a misheard word only when the intended word is obvious from context.
+- Do not translate, summarize, rephrase, reorder, or answer the text. If nothing needs changing, return it unchanged.
+- Output only the final text.
+
+Examples:
+Input: دکمه‌های آلت و اسپیس و ویندوز رو بزن تا رکورد بشه.
+Output: دکمه‌های Alt و Space و Windows رو بزن تا record بشه.
+
+Input: سی پی یو و رم باید طوری باشن که باتلنک نداشته باشیم.
+Output: CPU و RAM باید طوری باشن که bottleneck نداشته باشیم.
+
+Input: سلام، فردا جلسه داریم؟
+Output: سلام، فردا جلسه داریم؟";
 
 pub fn tidy(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")

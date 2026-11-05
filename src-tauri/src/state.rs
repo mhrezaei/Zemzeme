@@ -168,11 +168,13 @@ fn stop(app: &AppHandle) {
 
 fn transcribe(app: &AppHandle, recording: &Recording) -> Result<String, String> {
     let wav = recording.to_wav();
-    if cfg!(debug_assertions) {
+    let cfg = Config::load();
+    if cfg.keep_audio {
+        keep_recording(app, &wav);
+    } else if cfg!(debug_assertions) {
         save_debug_copy(app, &wav);
     }
 
-    let cfg = Config::load();
     let lang = Some(cfg.language.clone()).filter(|l| !l.is_empty());
     let stt = OpenRouter::new(cfg.api_key.clone(), cfg.model.clone(), lang)
         .with_prompt(cfg.stt_prompt());
@@ -180,7 +182,7 @@ fn transcribe(app: &AppHandle, recording: &Recording) -> Result<String, String> 
     let started = Instant::now();
     let result = stt.transcribe(&wav, "wav")?;
     // Success: no reason to keep the audio on disk.
-    if cfg!(debug_assertions) {
+    if cfg!(debug_assertions) && !cfg.keep_audio {
         delete_debug_copy(app);
     }
     eprintln!(
@@ -203,6 +205,20 @@ fn transcribe(app: &AppHandle, recording: &Recording) -> Result<String, String> 
 fn delete_debug_copy(app: &AppHandle) {
     if let Ok(dir) = app.path().app_cache_dir() {
         let _ = std::fs::remove_file(dir.join("last.wav"));
+    }
+}
+
+/// Troubleshooting option: every recording saved as recordings/<unix-time>.wav.
+fn keep_recording(app: &AppHandle, wav: &[u8]) {
+    let Ok(dir) = app.path().app_cache_dir().map(|d| d.join("recordings")) else { return };
+    let _ = std::fs::create_dir_all(&dir);
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let path = dir.join(format!("{secs}.wav"));
+    if std::fs::write(&path, wav).is_ok() {
+        eprintln!("my-whisper: kept recording {}", path.display());
     }
 }
 
