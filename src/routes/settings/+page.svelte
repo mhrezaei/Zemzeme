@@ -45,6 +45,85 @@
     ["fr", "French"],
   ];
   const CUSTOM = "__custom__";
+  // GNOME accelerators.
+  const SHORTCUTS = [
+    ["<Super><Alt>space", "Super + Alt + Space"],
+    ["<Ctrl><Alt>space", "Ctrl + Alt + Space"],
+    ["<Ctrl><Shift>space", "Ctrl + Shift + Space"],
+    ["<Super>grave", "Super + `"],
+    ["<Alt>grave", "Alt + `"],
+    ["F9", "F9"],
+  ];
+
+  interface SystemView { shortcut: string | null; autostart: boolean; dev_build: boolean; exe: string }
+  let sys = $state<SystemView | null>(null);
+  let capturing = $state(false);
+  let shortcutStatus = $state<{ ok: boolean; text: string } | null>(null);
+
+  // Physical key (e.code) → GNOME key name. e.code ignores keyboard layout,
+  // so this works while the Persian layout is active too.
+  const CODE_NAMES: Record<string, string> = {
+    Space: "space", Backquote: "grave", Minus: "minus", Equal: "equal", Comma: "comma",
+    Period: "period", Slash: "slash", Backslash: "backslash", Semicolon: "semicolon",
+    Quote: "apostrophe", BracketLeft: "bracketleft", BracketRight: "bracketright",
+    Enter: "Return", Tab: "Tab", Insert: "Insert", Delete: "Delete", Home: "Home", End: "End",
+    PageUp: "Page_Up", PageDown: "Page_Down", ArrowUp: "Up", ArrowDown: "Down",
+    ArrowLeft: "Left", ArrowRight: "Right", Pause: "Pause", ScrollLock: "Scroll_Lock",
+  };
+
+  function accelFromEvent(e: KeyboardEvent): string | null {
+    let key: string | undefined;
+    if (/^Key[A-Z]$/.test(e.code)) key = e.code.slice(3).toLowerCase();
+    else if (/^Digit\d$/.test(e.code)) key = e.code.slice(5);
+    else if (/^F\d{1,2}$/.test(e.code)) key = e.code;
+    else key = CODE_NAMES[e.code];
+    if (!key) return null; // modifier alone or unsupported key
+    const mods = (e.metaKey ? "<Super>" : "") + (e.ctrlKey ? "<Ctrl>" : "") + (e.altKey ? "<Alt>" : "") + (e.shiftKey ? "<Shift>" : "");
+    // Plain letters/space without a modifier would fire while typing.
+    if (!mods && !/^F\d/.test(key) && !["Pause", "Scroll_Lock", "Insert"].includes(key)) return null;
+    return mods + key;
+  }
+
+  function prettyKeys(accel: string): string[] {
+    const mods = [...accel.matchAll(/<(\w+)>/g)].map((m) => m[1]);
+    const key = accel.replace(/<\w+>/g, "");
+    const names: Record<string, string> = { space: "Space", grave: "`", Return: "Enter" };
+    return [...mods, names[key] ?? (key.length === 1 ? key.toUpperCase() : key)];
+  }
+
+  async function applyShortcut(accel: string) {
+    shortcutStatus = null;
+    try {
+      await invoke("set_shortcut", { binding: accel });
+      sys = await invoke<SystemView>("get_system");
+      shortcutStatus = { ok: true, text: "Shortcut saved." };
+    } catch (e) {
+      shortcutStatus = { ok: false, text: String(e) };
+    }
+  }
+
+  async function toggleAutostart(on: boolean) {
+    try {
+      await invoke("set_autostart", { on });
+    } catch (e) {
+      shortcutStatus = { ok: false, text: String(e) };
+    }
+    sys = await invoke<SystemView>("get_system");
+  }
+
+  function onCaptureKey(e: KeyboardEvent) {
+    if (!capturing) return;
+    e.preventDefault();
+    if (e.key === "Escape") {
+      capturing = false;
+      return;
+    }
+    const accel = accelFromEvent(e);
+    if (accel) {
+      capturing = false;
+      applyShortcut(accel);
+    }
+  }
 
   let s = $state<Settings | null>(null);
   let hasKey = $state(false);
@@ -81,6 +160,7 @@
     sttCustom = !isPreset(STT_MODELS, rest.model);
     cleanupCustom = !isPreset(CLEANUP_MODELS, rest.cleanup_model);
     mics = await invoke<Mic[]>("list_microphones");
+    sys = await invoke<SystemView>("get_system");
     loaded = true;
   }
 
@@ -173,9 +253,11 @@
     // Refresh microphones when the window is shown again.
     const onFocus = () => invoke<Mic[]>("list_microphones").then((m) => (mics = m));
     window.addEventListener("focus", onFocus);
+    window.addEventListener("keydown", onCaptureKey, true);
     return () => {
       un.then((f) => f());
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("keydown", onCaptureKey, true);
     };
   });
 </script>
@@ -303,8 +385,36 @@
 
     <section>
       <h2>Shortcut</h2>
-      <p>Start / stop recording: <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>Space</kbd></p>
-      <p class="hint">Set in GNOME Settings → Keyboard → Custom Shortcuts.</p>
+      {#if sys}
+        <p>
+          Start / stop recording:
+          {#if capturing}
+            <span class="capture">Press the new keys… (Esc to cancel)</span>
+          {:else if sys.shortcut}
+            {#each prettyKeys(sys.shortcut) as k, i}{#if i > 0} + {/if}<kbd>{k}</kbd>{/each}
+          {:else}
+            <b>not set</b>
+          {/if}
+        </p>
+        <div class="row">
+          <select
+            value={SHORTCUTS.some(([a]) => a === sys?.shortcut) ? sys.shortcut : ""}
+            onchange={(e) => e.currentTarget.value && applyShortcut(e.currentTarget.value)}
+          >
+            <option value="" disabled>Choose a shortcut…</option>
+            {#each SHORTCUTS as [accel, label]}<option value={accel}>{label}</option>{/each}
+          </select>
+          <button onclick={() => (capturing = true)} disabled={capturing}>Record keys</button>
+        </div>
+        {#if shortcutStatus}<p class={shortcutStatus.ok ? "ok" : "err"}>{shortcutStatus.text}</p>{/if}
+        <label class="switch">
+          <input type="checkbox" checked={sys.autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
+          <span>Start my-whisper when I log in</span>
+        </label>
+        {#if sys.dev_build}
+          <p class="hint">Development build: these point to <code>{sys.exe}</code>. The installed app sets them to itself on start.</p>
+        {/if}
+      {/if}
     </section>
 
     <section>
@@ -418,6 +528,7 @@
     font: inherit; font-size: 12px; padding: 1px 6px;
     border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px;
   }
+  .capture { color: var(--accent); font-weight: 600; }
   .meter { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
   .meter span { display: block; height: 100%; background: var(--accent); transition: width 0.08s linear; }
 </style>

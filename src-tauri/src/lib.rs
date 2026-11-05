@@ -6,6 +6,7 @@ pub mod pipeline;
 mod settings_cmd;
 mod state;
 pub mod stt;
+mod system;
 
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -104,9 +105,13 @@ pub fn run() {
             settings_cmd::test_api_key,
             settings_cmd::list_microphones,
             settings_cmd::test_microphone,
+            settings_cmd::get_system,
+            settings_cmd::set_shortcut,
+            settings_cmd::set_autostart,
         ])
         .setup(|app| {
             build_tray(app.handle())?;
+            system::shortcut::ensure();
             // Allow `my-whisper toggle` as the very first launch too.
             let args: Vec<String> = std::env::args().collect();
             handle_cli(app.handle(), &args);

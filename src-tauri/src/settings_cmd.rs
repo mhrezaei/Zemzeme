@@ -114,3 +114,33 @@ pub async fn test_microphone(app: AppHandle, id: String, seconds: f32) -> Result
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[derive(Serialize)]
+pub struct SystemView {
+    /// GNOME accelerator, e.g. "<Super><Alt>space"; None when not registered.
+    shortcut: Option<String>,
+    autostart: bool,
+    /// Dev builds point the shortcut and autostart at the debug binary.
+    dev_build: bool,
+    exe: String,
+}
+
+#[tauri::command]
+pub fn get_system() -> SystemView {
+    SystemView {
+        shortcut: crate::system::shortcut::get().ok().flatten(),
+        autostart: crate::system::autostart::enabled(),
+        dev_build: cfg!(debug_assertions),
+        exe: std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default(),
+    }
+}
+
+#[tauri::command]
+pub fn set_shortcut(binding: String) -> Result<(), String> {
+    crate::system::shortcut::set(binding.trim())
+}
+
+#[tauri::command]
+pub fn set_autostart(on: bool) -> Result<(), String> {
+    crate::system::autostart::set(on)
+}
