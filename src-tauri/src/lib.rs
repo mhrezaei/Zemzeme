@@ -3,6 +3,7 @@ pub mod config;
 pub mod inject;
 mod overlay;
 pub mod pipeline;
+mod settings_cmd;
 mod state;
 pub mod stt;
 
@@ -55,11 +56,6 @@ fn current_phase(app: AppHandle) -> Phase {
     app.state::<AppState>().phase()
 }
 
-#[tauri::command]
-fn list_microphones() -> Vec<audio::Microphone> {
-    audio::list_microphones()
-}
-
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let toggle_i = MenuItem::with_id(app, "toggle", "Start / stop recording", true, None::<&str>)?;
     let settings_i = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
@@ -102,7 +98,12 @@ pub fn run() {
             cancel,
             show_settings,
             current_phase,
-            list_microphones
+            settings_cmd::get_settings,
+            settings_cmd::save_settings,
+            settings_cmd::set_api_key,
+            settings_cmd::test_api_key,
+            settings_cmd::list_microphones,
+            settings_cmd::test_microphone,
         ])
         .setup(|app| {
             build_tray(app.handle())?;

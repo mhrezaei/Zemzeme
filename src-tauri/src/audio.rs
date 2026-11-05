@@ -26,7 +26,56 @@ pub struct Microphone {
     pub is_default: bool,
 }
 
+/// Prefix for microphones addressed by PipeWire node name.
+const PW_PREFIX: &str = "pw:";
+
 pub fn list_microphones() -> Vec<Microphone> {
+    #[cfg(target_os = "linux")]
+    if let Some(mics) = pipewire_sources() {
+        return mics;
+    }
+    list_cpal_microphones()
+}
+
+/// ALSA's own device list is long and full of duplicates (hw:, plughw:,
+/// dsnoop:…). PipeWire knows the real microphones and their proper names,
+/// so ask it via `pw-dump`. The node name is stable across reboots and
+/// replugging, unlike the numeric id.
+#[cfg(target_os = "linux")]
+fn pipewire_sources() -> Option<Vec<Microphone>> {
+    let out = std::process::Command::new("pw-dump").output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let objects: Vec<serde_json::Value> = serde_json::from_slice(&out.stdout).ok()?;
+
+    let default_name = objects
+        .iter()
+        .filter(|o| o["type"] == "PipeWire:Interface:Metadata")
+        .flat_map(|o| o["metadata"].as_array().cloned().unwrap_or_default())
+        .find(|m| m["key"] == "default.audio.source")
+        .and_then(|m| m["value"]["name"].as_str().map(String::from));
+
+    let mics: Vec<Microphone> = objects
+        .iter()
+        .filter_map(|o| {
+            let props = &o["info"]["props"];
+            if props["media.class"] != "Audio/Source" {
+                return None;
+            }
+            let node = props["node.name"].as_str()?;
+            let name = props["node.description"].as_str().or(props["node.nick"].as_str()).unwrap_or(node);
+            Some(Microphone {
+                id: format!("{PW_PREFIX}{node}"),
+                name: name.to_string(),
+                is_default: default_name.as_deref() == Some(node),
+            })
+        })
+        .collect();
+    Some(mics)
+}
+
+fn list_cpal_microphones() -> Vec<Microphone> {
     let host = cpal::default_host();
     let default_id = host
         .default_input_device()
@@ -45,7 +94,23 @@ pub fn list_microphones() -> Vec<Microphone> {
 
 fn find_device(id: Option<&str>) -> Result<cpal::Device, String> {
     let host = cpal::default_host();
-    if let Some(id) = id.filter(|s| !s.is_empty()) {
+    let id = id.filter(|s| !s.is_empty());
+
+    // A PipeWire microphone: open ALSA's default device (which is PipeWire)
+    // and tell PipeWire's ALSA plugin which node to connect to. The plugin
+    // reads PIPEWIRE_NODE when the stream opens.
+    #[cfg(target_os = "linux")]
+    {
+        // SAFETY: only this function writes the variable, and nothing else
+        // in the app reads it; the audio library reads it while opening.
+        match id.and_then(|i| i.strip_prefix(PW_PREFIX)) {
+            Some(node) => unsafe { std::env::set_var("PIPEWIRE_NODE", node) },
+            None => unsafe { std::env::remove_var("PIPEWIRE_NODE") },
+        }
+    }
+    let id = id.filter(|i| !i.starts_with(PW_PREFIX));
+
+    if let Some(id) = id {
         if let Some(dev) = id.parse().ok().and_then(|id| host.device_by_id(&id)) {
             return Ok(dev);
         }

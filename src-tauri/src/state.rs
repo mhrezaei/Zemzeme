@@ -107,7 +107,7 @@ fn start(app: &AppHandle) {
 
     let mic = Config::load().microphone;
     let level_app = app.clone();
-    match Recorder::start(mic.as_deref(), move |level| {
+    match Recorder::start(Some(mic.as_str()), move |level| {
         let _ = level_app.emit("level", level);
     }) {
         Ok(rec) => {

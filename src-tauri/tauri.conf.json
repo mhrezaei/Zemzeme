@@ -31,8 +31,8 @@
         "label": "settings",
         "url": "/settings",
         "title": "my-whisper — Settings",
-        "width": 520,
-        "height": 640,
+        "width": 560,
+        "height": 760,
         "visible": false,
         "center": true
       }

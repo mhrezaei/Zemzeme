@@ -12,13 +12,16 @@ use arboard::{Clipboard, ImageData};
 /// Time for the target app to read the clipboard before we restore it.
 const RESTORE_AFTER: Duration = Duration::from_millis(700);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum PasteKey {
     /// Most apps.
+    #[serde(rename = "ctrl+v")]
     CtrlV,
     /// Terminals.
+    #[serde(rename = "ctrl+shift+v")]
     CtrlShiftV,
     /// Works in most apps and many terminals, and does not depend on keyboard layout.
+    #[serde(rename = "shift+insert")]
     ShiftInsert,
 }
 
