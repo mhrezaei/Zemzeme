@@ -2,6 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    my_whisper_lib::config::load_dotenv();
+
     // GNOME on Wayland ignores window positions set by apps, so the overlay
     // could not sit at the screen edge. Running under XWayland fixes that.
     #[cfg(target_os = "linux")]

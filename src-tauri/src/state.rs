@@ -2,16 +2,21 @@
 //! Idle → Recording → Transcribing → Pasting → Idle, with Cancel from any busy state.
 
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::audio::{Recorder, Recording};
+use crate::config::Config;
 use crate::overlay;
+use crate::pipeline;
+use crate::stt::{OpenRouter, SpeechToText};
 
 /// Recordings shorter than this are treated as accidental presses.
 const MIN_SECONDS: f32 = 0.3;
+/// Clips with less speech than this are not sent (models hallucinate on noise).
+const MIN_SPEECH_SECONDS: f32 = 0.25;
 /// How long an error stays on screen before the overlay hides.
 const ERROR_HIDE_AFTER: Duration = Duration::from_secs(3);
 
@@ -21,7 +26,6 @@ pub enum Phase {
     Idle,
     Recording,
     Transcribing,
-    #[allow(dead_code)] // used from phase 5 (paste)
     Pasting,
     Error,
 }
@@ -100,8 +104,7 @@ fn start(app: &AppHandle) {
     let session = state.next_session();
     overlay::show(app);
 
-    // Phase 6 moves this into settings.
-    let mic = std::env::var("MY_WHISPER_MIC").ok();
+    let mic = Config::load().microphone;
     let level_app = app.clone();
     match Recorder::start(mic.as_deref(), move |level| {
         let _ = level_app.emit("level", level);
@@ -134,9 +137,24 @@ fn stop(app: &AppHandle) {
         if recording.is_silent() {
             return fail(&app, session, "Microphone is silent".into());
         }
-        if let Err(e) = process(&app, &recording) {
-            return fail(&app, session, e);
+        if recording.speech_seconds() < MIN_SPEECH_SECONDS {
+            return fail(&app, session, "No speech detected".into());
         }
+        let text = match transcribe(&app, &recording) {
+            Ok(t) => t,
+            Err(e) => return fail(&app, session, e),
+        };
+        // The user may have cancelled while the request was in flight.
+        if !app.state::<AppState>().is_current(session) {
+            return;
+        }
+        if text.is_empty() {
+            return fail(&app, session, "No speech detected".into());
+        }
+
+        // Phase 5 pastes the text at the cursor. Until then, show it briefly.
+        set_phase(&app, Phase::Pasting, Some(text));
+        std::thread::sleep(Duration::from_millis(2500));
         if app.state::<AppState>().is_current(session) {
             set_phase(&app, Phase::Idle, None);
             overlay::hide(&app);
@@ -144,18 +162,33 @@ fn stop(app: &AppHandle) {
     });
 }
 
-/// Phases 3–5 replace this: send to STT, then paste the text.
-fn process(app: &AppHandle, recording: &Recording) -> Result<(), String> {
-    let dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let path = dir.join("last.wav");
+fn transcribe(app: &AppHandle, recording: &Recording) -> Result<String, String> {
     let wav = recording.to_wav();
-    std::fs::write(&path, &wav).map_err(|e| e.to_string())?;
+    if cfg!(debug_assertions) {
+        save_debug_copy(app, &wav);
+    }
+
+    let cfg = Config::load();
+    let lang = Some(cfg.language).filter(|l| !l.is_empty());
+    let stt = OpenRouter::new(cfg.api_key, cfg.model.clone(), lang);
+
+    let started = Instant::now();
+    let result = stt.transcribe(&wav, "wav")?;
     eprintln!(
-        "my-whisper: recorded {:.1}s ({} KB) → {}",
+        "my-whisper: {:.1}s audio → {} in {:.1}s, cost {}: {}",
         recording.duration_secs(),
-        wav.len() / 1024,
-        path.display()
+        cfg.model,
+        started.elapsed().as_secs_f32(),
+        result.cost.map(|c| format!("${c:.5}")).unwrap_or_else(|| "?".into()),
+        result.text
     );
-    Ok(())
+    Ok(pipeline::process(&result.text))
+}
+
+/// Keep the last recording around in dev builds to debug audio issues.
+fn save_debug_copy(app: &AppHandle, wav: &[u8]) {
+    if let Ok(dir) = app.path().app_cache_dir() {
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = std::fs::write(dir.join("last.wav"), wav);
+    }
 }

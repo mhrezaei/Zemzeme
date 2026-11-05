@@ -17,7 +17,11 @@ fn main() {
 
     let peak = rec.samples.iter().fold(0f32, |m, s| m.max(s.abs()));
     let rms = (rec.samples.iter().map(|s| s * s).sum::<f32>() / rec.samples.len().max(1) as f32).sqrt();
-    println!("asked {secs}s, got {:.2}s, peak {peak:.4}, rms {rms:.5}", rec.duration_secs());
+    println!(
+        "asked {secs}s, got {:.2}s, peak {peak:.4}, rms {rms:.5}, speech {:.2}s",
+        rec.duration_secs(),
+        rec.speech_seconds()
+    );
 
     if let Some(path) = out {
         std::fs::write(path, rec.to_wav()).expect("write wav");

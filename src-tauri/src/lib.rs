@@ -1,6 +1,9 @@
 pub mod audio;
+pub mod config;
 mod overlay;
+pub mod pipeline;
 mod state;
+pub mod stt;
 
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},

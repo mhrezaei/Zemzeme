@@ -69,6 +69,32 @@ impl Recording {
         self.samples.iter().all(|s| s.abs() < 1e-5)
     }
 
+    /// Rough amount of speech, in seconds: 30 ms frames clearly louder than the
+    /// background. Speech models invent text from pure room noise, so clips
+    /// without speech should not be sent at all.
+    ///
+    /// The background level is the 20th-percentile frame, capped so a clip
+    /// that is speech from start to end still counts. Measured on a USB mic:
+    /// room noise gave 0 loud frames, a 16 s sentence gave 5.8 s.
+    pub fn speech_seconds(&self) -> f32 {
+        const FRAME: usize = (TARGET_RATE as usize * 30) / 1000;
+        const LOUDER_THAN_FLOOR: f32 = 2.5;
+
+        let rms: Vec<f32> = self
+            .samples
+            .chunks_exact(FRAME)
+            .map(|f| (f.iter().map(|s| s * s).sum::<f32>() / FRAME as f32).sqrt())
+            .collect();
+        if rms.is_empty() {
+            return 0.0;
+        }
+        let mut sorted = rms.clone();
+        sorted.sort_by(f32::total_cmp);
+        let floor = sorted[sorted.len() / 5].clamp(0.001, 0.006);
+        let loud = rms.iter().filter(|&&r| r > floor * LOUDER_THAN_FLOOR).count();
+        loud as f32 * 0.03
+    }
+
     pub fn to_wav(&self) -> Vec<u8> {
         let spec = hound::WavSpec {
             channels: 1,
@@ -256,6 +282,38 @@ mod tests {
     fn resample_44_1k_to_16k() {
         let out = resample(&vec![0.0f32; 44_100], 44_100, 16_000);
         assert_eq!(out.len(), 16_000);
+    }
+
+    /// Deterministic pseudo-noise in -amp..amp.
+    fn noise(len: usize, amp: f32) -> Vec<f32> {
+        let mut x: u32 = 12345;
+        (0..len)
+            .map(|_| {
+                x = x.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+                ((x >> 16) as f32 / 32_768.0 - 1.0) * amp
+            })
+            .collect()
+    }
+
+    #[test]
+    fn room_noise_has_no_speech() {
+        let rec = Recording { samples: noise(16_000 * 3, 0.006) };
+        assert!(rec.speech_seconds() < 0.1, "{}", rec.speech_seconds());
+    }
+
+    #[test]
+    fn loud_section_counts_as_speech() {
+        let mut samples = noise(16_000, 0.006);
+        samples.extend(noise(16_000, 0.08)); // 1 s of "speech"
+        samples.extend(noise(16_000, 0.006));
+        let s = Recording { samples }.speech_seconds();
+        assert!((0.8..1.1).contains(&s), "{s}");
+    }
+
+    #[test]
+    fn continuous_speech_counts() {
+        let s = Recording { samples: noise(16_000 * 2, 0.08) }.speech_seconds();
+        assert!(s > 1.5, "{s}");
     }
 
     #[test]

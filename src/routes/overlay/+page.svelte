@@ -56,10 +56,10 @@
     {/if}
   </div>
 
-  <div class="label">
+  <div class="label" dir="auto">
     {#if phase === "recording"}{timer}
     {:else if phase === "transcribing"}Transcribing…
-    {:else if phase === "pasting"}Pasting…
+    {:else if phase === "pasting"}{message ?? "Pasting…"}
     {:else if phase === "error"}{message ?? "Error"}
     {:else}Ready{/if}
   </div>
