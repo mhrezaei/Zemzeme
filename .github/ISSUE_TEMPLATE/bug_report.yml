@@ -1,0 +1,41 @@
+name: Bug report
+description: Something doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please **don't paste your API key** or anything private.
+        For security problems, use [private reporting](https://github.com/mhrezaei/Zemzeme/security/advisories/new) instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Zemzeme version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Distro and desktop
+      placeholder: "Ubuntu 26.04, GNOME 50, Wayland"
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Speech model and language
+      placeholder: "openai/gpt-4o-transcribe, fa"
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: The last lines of `~/.local/state/zemzeme/zemzeme.log`. It contains no transcripts.
+      render: text

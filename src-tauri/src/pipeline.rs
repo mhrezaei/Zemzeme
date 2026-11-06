@@ -51,12 +51,16 @@ pub fn tidy(text: &str) -> String {
 /// Runs every enabled step. A failed cleanup falls back to the raw text, so a
 /// network hiccup never loses what the user said.
 pub fn process(text: &str, cfg: &Config) -> String {
+    process_at(crate::stt::OpenRouter::DEFAULT_BASE_URL, text, cfg)
+}
+
+fn process_at(base_url: &str, text: &str, cfg: &Config) -> String {
     let text = tidy(text);
     if !cfg.cleanup || text.is_empty() {
         return text;
     }
     let started = std::time::Instant::now();
-    match cleanup(&text, cfg) {
+    match cleanup(base_url, &text, cfg) {
         Ok(cleaned) if plausible(&text, &cleaned) => {
             crate::log::info(&format!("cleanup in {:.1}s", started.elapsed().as_secs_f32()));
             cleaned
@@ -94,7 +98,7 @@ struct Message {
     content: Option<String>,
 }
 
-fn cleanup(text: &str, cfg: &Config) -> Result<String, String> {
+fn cleanup(base_url: &str, text: &str, cfg: &Config) -> Result<String, String> {
     let mut system = CLEANUP_SYSTEM.to_string();
     let vocab = cfg.vocabulary_words();
     if !vocab.is_empty() {
@@ -115,7 +119,7 @@ fn cleanup(text: &str, cfg: &Config) -> Result<String, String> {
         .timeout(CLEANUP_TIMEOUT)
         .build()
         .map_err(|e| e.to_string())?
-        .post("https://openrouter.ai/api/v1/chat/completions")
+        .post(format!("{base_url}/chat/completions"))
         .bearer_auth(cfg.api_key.trim())
         .header("X-Title", "Zemzeme")
         .json(&body)
@@ -128,18 +132,52 @@ fn cleanup(text: &str, cfg: &Config) -> Result<String, String> {
         return Err(format!("{status}: {}", raw.chars().take(200).collect::<String>()));
     }
     let parsed: ChatResponse = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
-    let content = parsed
-        .choices
-        .into_iter()
-        .next()
-        .and_then(|c| c.message.content)
-        .ok_or("empty response")?;
+    let content = parsed.choices.into_iter().next().and_then(|c| c.message.content).ok_or("empty response")?;
     Ok(tidy(&content))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_server::serve;
+
+    const RAW: &str = "بعدش کامیت و اینا انجام بده";
+
+    fn cfg() -> Config {
+        Config { api_key: "sk-test".into(), vocabulary: "Zemzeme".into(), ..Config::default() }
+    }
+
+    fn reply(content: &str) -> String {
+        serde_json::json!({ "choices": [{ "message": { "content": content } }] }).to_string()
+    }
+
+    #[test]
+    fn uses_cleaned_text() {
+        let (url, server) = serve(200, &reply("بعدش commit و اینا انجام بده"), Duration::ZERO);
+        assert_eq!(process_at(&url, RAW, &cfg()), "بعدش commit و اینا انجام بده");
+
+        let req = server.join().unwrap();
+        assert!(req.head.starts_with("POST /chat/completions"));
+        assert_eq!(req.body["model"], crate::config::DEFAULT_CLEANUP_MODEL);
+        assert_eq!(req.body["messages"][1]["content"], RAW);
+        assert!(req.body["messages"][0]["content"].as_str().unwrap().contains("Zemzeme"), "vocabulary is sent");
+    }
+
+    #[test]
+    fn keeps_raw_text_when_cleanup_fails_or_misbehaves() {
+        for (status, body) in [(500, "{}".to_string()), (200, reply("باشه")), (200, "not json".to_string())] {
+            let (url, server) = serve(status, &body, Duration::ZERO);
+            assert_eq!(process_at(&url, RAW, &cfg()), RAW, "status {status}, body {body}");
+            server.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn skips_cleanup_when_off() {
+        let off = Config { cleanup: false, ..cfg() };
+        // Nothing listens on this address; a request would fail the test by hanging or erroring.
+        assert_eq!(process_at("http://127.0.0.1:1", "  سلام   دنیا ", &off), "سلام دنیا");
+    }
 
     #[test]
     fn collapses_whitespace() {

@@ -147,20 +147,18 @@ pub mod api_key {
         if let Some(k) = CACHE.lock().unwrap().clone() {
             return k;
         }
-        let stored = entry()
-            .and_then(|e| e.get_password().map_err(|e| e.to_string()))
-            .ok()
-            .filter(|k| !k.trim().is_empty());
+        let stored =
+            entry().and_then(|e| e.get_password().map_err(|e| e.to_string())).ok().filter(|k| !k.trim().is_empty());
         let key = match stored {
             Some(k) => k,
             None => {
                 // A key from `.env` (dev setup): move it into the keyring so
                 // release builds, which don't read `.env`, find it too.
                 let env_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_default();
-                if !env_key.trim().is_empty() {
-                    if let Ok(e) = entry() {
-                        let _ = e.set_password(env_key.trim());
-                    }
+                if !env_key.trim().is_empty()
+                    && let Ok(e) = entry()
+                {
+                    let _ = e.set_password(env_key.trim());
                 }
                 env_key
             }

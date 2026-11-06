@@ -15,10 +15,10 @@ pub fn migrate() {
     if !cfg!(debug_assertions) {
         // The new shortcut entry is created by `system::shortcut::ensure`, keeping these keys.
         let old_binding = crate::system::shortcut::take_legacy(OLD_SHORTCUT_PATH);
-        if let Some(b) = old_binding {
-            if let Err(e) = crate::system::shortcut::set(&b) {
-                crate::log::warn(&format!("migrate shortcut: {e}"));
-            }
+        if let Some(b) = old_binding
+            && let Err(e) = crate::system::shortcut::set(&b)
+        {
+            crate::log::warn(&format!("migrate shortcut: {e}"));
         }
         let old_autostart = config.join("autostart").join("my-whisper.desktop");
         if old_autostart.exists() {

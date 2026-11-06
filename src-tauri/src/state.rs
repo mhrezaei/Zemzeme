@@ -180,8 +180,7 @@ fn transcribe(app: &AppHandle, recording: &Recording) -> Result<String, String> 
     }
 
     let lang = Some(cfg.language.clone()).filter(|l| !l.is_empty());
-    let stt = OpenRouter::new(cfg.api_key.clone(), cfg.model.clone(), lang)
-        .with_prompt(cfg.stt_prompt());
+    let stt = OpenRouter::new(cfg.api_key.clone(), cfg.model.clone(), lang).with_prompt(cfg.stt_prompt());
 
     let started = Instant::now();
     let result = stt.transcribe(&wav, "wav")?;
@@ -217,10 +216,7 @@ fn delete_debug_copy(app: &AppHandle) {
 fn keep_recording(app: &AppHandle, wav: &[u8]) {
     let Ok(dir) = app.path().app_cache_dir().map(|d| d.join("recordings")) else { return };
     let _ = std::fs::create_dir_all(&dir);
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let path = dir.join(format!("{secs}.wav"));
     if std::fs::write(&path, wav).is_ok() {
         crate::log::info(&format!("kept recording {}", path.display()));

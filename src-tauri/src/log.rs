@@ -23,6 +23,9 @@ pub fn path() -> PathBuf {
 
 fn write(level: &str, msg: &str) {
     eprintln!("zemzeme: {msg}");
+    if cfg!(test) {
+        return; // tests must not touch the user's log file
+    }
     let _guard = LOCK.lock().unwrap();
     let p = path();
     if let Some(dir) = p.parent() {
@@ -31,10 +34,7 @@ fn write(level: &str, msg: &str) {
     let truncate = std::fs::metadata(&p).map(|m| m.len() > MAX_BYTES).unwrap_or(false);
     let file = OpenOptions::new().create(true).append(!truncate).write(true).truncate(truncate).open(&p);
     if let Ok(mut f) = file {
-        let secs = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+        let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
         let _ = writeln!(f, "{secs} {level} {msg}");
     }
 }

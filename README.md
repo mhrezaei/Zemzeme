@@ -100,6 +100,9 @@ On KDE, Sway, Hyprland and others, bind any key to `zemzeme toggle` in your desk
 - OpenRouter forwards the audio to the model's provider (for example OpenAI). Their data policies apply; see [OpenRouter's privacy settings](https://openrouter.ai/settings/privacy).
 - The API key is stored in the system keyring (GNOME Keyring), not in a file.
 - The log (`~/.local/state/zemzeme/zemzeme.log`) records timings and errors only, never transcripts.
+- Tip: set a monthly credit limit on your key at [openrouter.ai/keys](https://openrouter.ai/keys), so a leaked key can't cost much.
+
+More detail, and how to report a security problem: [SECURITY.md](SECURITY.md).
 
 ## Files
 
@@ -141,7 +144,7 @@ npm run tauri dev
 ```
 
 - In dev builds, settings are seeded from `.env` on first run (see [.env.example](.env.example)).
-- Run the tests with `cargo test` in `src-tauri`.
+- Run the tests with `cargo test` in `src-tauri`. They include the OpenRouter request and error handling, against a local fake server (no network or credits needed). CI also checks `cargo fmt` and `cargo clippy`.
 - Small tools for testing are in `src-tauri/examples`:
 
   ```bash

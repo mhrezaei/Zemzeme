@@ -38,6 +38,9 @@ if [[ "${1:-}" != "--no-build" ]]; then
   echo "Building release…"
   NODE_BIN="$(ls -d "$HOME"/.nvm/versions/node/v2[4-9]*/bin 2>/dev/null | sort -V | tail -1 || true)"
   export PATH="${NODE_BIN:+$NODE_BIN:}$HOME/.cargo/bin:$PATH"
+  echo "Running tests…"
+  (cd "$ROOT" && npm run build --silent)   # the Rust build embeds the UI
+  (cd "$ROOT/src-tauri" && cargo test --quiet)
   (cd "$ROOT" && npm run tauri build -- --no-bundle)
 fi
 

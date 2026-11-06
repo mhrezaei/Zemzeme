@@ -40,6 +40,10 @@ jobs:
           workspaces: src-tauri
 
       - run: npm ci
+      # Don't publish a build that fails the tests. The Rust build embeds the UI, so build it first.
+      - run: npm run build
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
       - name: Build .deb
         run: npm run tauri build
 

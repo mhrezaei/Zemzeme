@@ -106,6 +106,9 @@ zemzeme quit
 - OpenRouter صدا را به ارائه‌دهنده‌ی مدل (مثلاً OpenAI) می‌فرستد. سیاست‌های داده‌ی آن‌ها اعمال می‌شود. ببین: [تنظیمات حریم خصوصی OpenRouter](https://openrouter.ai/settings/privacy).
 - کلید API در Keyring سیستم (GNOME Keyring) نگه داشته می‌شود، نه در فایل.
 - لاگ (`~/.local/state/zemzeme/zemzeme.log`) فقط زمان‌ها و خطاها را دارد و هیچ‌وقت متن گفتار را ندارد.
+- پیشنهاد: در [openrouter.ai/keys](https://openrouter.ai/keys) برای کلیدت سقف خرج ماهانه بگذار تا اگر لو رفت ضرر زیادی نداشته باشد.
+
+جزئیات بیشتر و راه گزارش مشکل امنیتی: [SECURITY.md](SECURITY.md)
 
 ## فایل‌ها
 

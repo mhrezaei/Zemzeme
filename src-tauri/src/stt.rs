@@ -32,13 +32,14 @@ pub struct OpenRouter {
     /// Hint text for the model (spelling, vocabulary). Only some providers use it.
     pub prompt: Option<String>,
     pub base_url: String,
+    pub timeout: Duration,
 }
 
 impl OpenRouter {
     pub const DEFAULT_BASE_URL: &'static str = "https://openrouter.ai/api/v1";
 
     pub fn new(api_key: String, model: String, language: Option<String>) -> Self {
-        Self { api_key, model, language, prompt: None, base_url: Self::DEFAULT_BASE_URL.into() }
+        Self { api_key, model, language, prompt: None, base_url: Self::DEFAULT_BASE_URL.into(), timeout: TIMEOUT }
     }
 
     pub fn with_prompt(mut self, prompt: Option<String>) -> Self {
@@ -97,10 +98,7 @@ impl SpeechToText for OpenRouter {
             });
         }
 
-        let client = reqwest::blocking::Client::builder()
-            .timeout(TIMEOUT)
-            .build()
-            .map_err(|e| e.to_string())?;
+        let client = reqwest::blocking::Client::builder().timeout(self.timeout).build().map_err(|e| e.to_string())?;
 
         let resp = client
             .post(format!("{}/audio/transcriptions", self.base_url))
@@ -136,8 +134,78 @@ impl SpeechToText for OpenRouter {
             });
         }
 
-        let parsed: SuccessBody =
-            serde_json::from_str(&text).map_err(|e| format!("Unexpected response: {e}"))?;
+        let parsed: SuccessBody = serde_json::from_str(&text).map_err(|e| format!("Unexpected response: {e}"))?;
         Ok(Transcript { text: parsed.text, cost: parsed.usage.and_then(|u| u.cost) })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_server::{closed_url, serve};
+
+    fn client(base_url: String) -> OpenRouter {
+        let mut c = OpenRouter::new("sk-test".into(), "openai/gpt-4o-transcribe".into(), Some("fa".into()));
+        c.base_url = base_url;
+        c.timeout = Duration::from_millis(500);
+        c
+    }
+
+    fn fail_with(status: u16, body: &str) -> String {
+        let (url, server) = serve(status, body, Duration::ZERO);
+        let err = client(url).transcribe(b"RIFF", "wav").unwrap_err();
+        server.join().unwrap();
+        err
+    }
+
+    #[test]
+    fn sends_audio_and_reads_text() {
+        let (url, server) = serve(200, r#"{"text":"سلام","usage":{"cost":0.0004}}"#, Duration::ZERO);
+        let c = client(url).with_prompt(Some("Docker".into()));
+        let t = c.transcribe(b"RIFF", "wav").unwrap();
+        assert_eq!(t.text, "سلام");
+        assert_eq!(t.cost, Some(0.0004));
+
+        let req = server.join().unwrap();
+        assert!(req.head.starts_with("POST /audio/transcriptions"));
+        assert!(req.head.to_ascii_lowercase().contains("authorization: bearer sk-test"));
+        assert_eq!(req.body["model"], "openai/gpt-4o-transcribe");
+        assert_eq!(req.body["language"], "fa");
+        assert_eq!(req.body["input_audio"]["format"], "wav");
+        assert_eq!(req.body["input_audio"]["data"], "UklGRg==");
+        assert_eq!(req.body["provider"]["options"]["openai"]["prompt"], "Docker");
+    }
+
+    #[test]
+    fn explains_common_errors() {
+        assert_eq!(fail_with(401, r#"{"error":{"message":"No auth"}}"#), "Invalid API key");
+        assert_eq!(fail_with(402, "{}"), "Out of OpenRouter credits");
+        assert_eq!(fail_with(429, "{}"), "Rate limited, try again");
+        assert_eq!(fail_with(500, r#"{"error":{"message":"boom"}}"#), "API error 500: boom");
+        assert_eq!(fail_with(502, "Bad gateway"), "API error 502: Bad gateway");
+    }
+
+    #[test]
+    fn rejects_unexpected_response() {
+        assert!(fail_with(200, r#"{"nope":1}"#).starts_with("Unexpected response"));
+    }
+
+    #[test]
+    fn reports_timeout() {
+        let (url, server) = serve(200, r#"{"text":"late"}"#, Duration::from_secs(2));
+        assert_eq!(client(url).transcribe(b"RIFF", "wav").unwrap_err(), "Request timed out");
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn reports_no_connection() {
+        assert_eq!(client(closed_url()).transcribe(b"RIFF", "wav").unwrap_err(), "No connection to OpenRouter");
+    }
+
+    #[test]
+    fn needs_a_key() {
+        let mut c = client(closed_url());
+        c.api_key = "  ".into();
+        assert_eq!(c.transcribe(b"RIFF", "wav").unwrap_err(), "No API key set");
     }
 }

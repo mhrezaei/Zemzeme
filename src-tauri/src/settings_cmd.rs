@@ -6,7 +6,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use crate::audio::{self, Recorder};
-use crate::config::{api_key, Config};
+use crate::config::{Config, api_key};
 
 #[derive(Serialize)]
 pub struct SettingsView {

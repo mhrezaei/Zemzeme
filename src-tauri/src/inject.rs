@@ -55,6 +55,8 @@ pub struct Injector {
 impl Injector {
     /// Creates the virtual keyboard now: the desktop needs a moment to pick up
     /// a new input device, so it must exist before the first paste.
+    /// (No `Default`: creating one has a side effect.)
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let (kb, err) = match keyboard::Keyboard::new() {
             Ok(k) => (Some(k), None),
@@ -68,11 +70,7 @@ impl Injector {
 
     pub fn paste(&self, text: &str, key: PasteKey) -> Result<Outcome, String> {
         let mut clipboard = Clipboard::new().map_err(|e| format!("Clipboard: {e}"))?;
-        let saved = clipboard
-            .get_text()
-            .map(Saved::Text)
-            .ok()
-            .or_else(|| clipboard.get_image().ok().map(Saved::Image));
+        let saved = clipboard.get_text().map(Saved::Text).ok().or_else(|| clipboard.get_image().ok().map(Saved::Image));
 
         clipboard.set_text(text).map_err(|e| format!("Clipboard: {e}"))?;
         // Let the desktop see the new clipboard owner before the paste key arrives.

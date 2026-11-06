@@ -77,10 +77,7 @@ fn pipewire_sources() -> Option<Vec<Microphone>> {
 
 fn list_cpal_microphones() -> Vec<Microphone> {
     let host = cpal::default_host();
-    let default_id = host
-        .default_input_device()
-        .and_then(|d| d.id().ok())
-        .map(|id| id.to_string());
+    let default_id = host.default_input_device().and_then(|d| d.id().ok()).map(|id| id.to_string());
 
     let Ok(devices) = host.input_devices() else { return Vec::new() };
     devices
@@ -147,7 +144,9 @@ impl Recording {
 
         let rms: Vec<f32> = self
             .samples
-            .chunks_exact(FRAME)
+            .as_chunks::<FRAME>()
+            .0
+            .iter()
             .map(|f| (f.iter().map(|s| s * s).sum::<f32>() / FRAME as f32).sqrt())
             .collect();
         if rms.is_empty() {
@@ -187,10 +186,7 @@ pub struct Recorder {
 
 impl Recorder {
     /// Starts capturing. `on_level` is called about 20 times a second with a 0..1 loudness value.
-    pub fn start(
-        device_id: Option<&str>,
-        on_level: impl Fn(f32) + Send + 'static,
-    ) -> Result<Self, String> {
+    pub fn start(device_id: Option<&str>, on_level: impl Fn(f32) + Send + 'static) -> Result<Self, String> {
         let device = find_device(device_id)?;
         let (stop_tx, stop_rx) = mpsc::channel::<()>();
         // Report whether the stream opened before returning, so errors reach the caller.
@@ -214,13 +210,9 @@ impl Recorder {
                     }
                 };
 
-                loop {
-                    match stop_rx.recv_timeout(Duration::from_millis(50)) {
-                        Err(RecvTimeoutError::Timeout) => {
-                            on_level(f32::from_bits(level.load(Ordering::Relaxed)));
-                        }
-                        _ => break,
-                    }
+                // Report the level every 50 ms until told to stop.
+                while let Err(RecvTimeoutError::Timeout) = stop_rx.recv_timeout(Duration::from_millis(50)) {
+                    on_level(f32::from_bits(level.load(Ordering::Relaxed)));
                 }
                 drop(stream);
 
@@ -238,11 +230,7 @@ impl Recorder {
 
     pub fn stop(mut self) -> Result<Recording, String> {
         let _ = self.stop_tx.send(());
-        self.handle
-            .take()
-            .expect("handle")
-            .join()
-            .map_err(|_| "Audio thread panicked".to_string())?
+        self.handle.take().expect("handle").join().map_err(|_| "Audio thread panicked".to_string())?
     }
 }
 
@@ -278,7 +266,7 @@ fn open_stream(
         f32: FromSample<T>,
     {
         device.build_input_stream::<T, _, _>(
-            config.clone(),
+            *config,
             move |data: &[T], _| {
                 let mut sum_sq = 0.0f32;
                 let mut buf = buffer.lock().unwrap();

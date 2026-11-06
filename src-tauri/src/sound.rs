@@ -86,7 +86,7 @@ where
     let pos = Arc::new(Mutex::new(0usize));
     device
         .build_output_stream::<T, _, _>(
-            config.clone(),
+            *config,
             move |data: &mut [T], _| {
                 let mut p = pos.lock().unwrap();
                 for frame in data.chunks_mut(channels) {

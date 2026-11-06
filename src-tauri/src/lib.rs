@@ -10,11 +10,13 @@ pub mod sound;
 mod state;
 pub mod stt;
 mod system;
+#[cfg(test)]
+mod test_server;
 
 use tauri::{
+    AppHandle, Manager, WindowEvent,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, WindowEvent,
 };
 
 use state::{AppState, Phase};
@@ -115,10 +117,11 @@ pub fn run() {
         .setup(|app| {
             legacy::migrate();
             // First start of an installed build (e.g. from the .deb): start at login by default.
-            if !cfg!(debug_assertions) && !config::settings_path().exists() {
-                if let Err(e) = system::autostart::set(true) {
-                    log::warn(&format!("autostart: {e}"));
-                }
+            if !cfg!(debug_assertions)
+                && !config::settings_path().exists()
+                && let Err(e) = system::autostart::set(true)
+            {
+                log::warn(&format!("autostart: {e}"));
             }
             log::info(&format!("started v{}", env!("CARGO_PKG_VERSION")));
             build_tray(app.handle())?;
