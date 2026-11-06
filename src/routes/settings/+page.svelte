@@ -268,7 +268,7 @@
 
 <main>
   <header>
-    <h1>my-whisper</h1>
+    <h1>Zemzeme</h1>
     <span class="saved" class:show={saved}>Saved ✓</span>
   </header>
   {#if saveError}<p class="err">{saveError}</p>{/if}
@@ -413,7 +413,7 @@
         {#if shortcutStatus}<p class={shortcutStatus.ok ? "ok" : "err"}>{shortcutStatus.text}</p>{/if}
         <label class="switch">
           <input type="checkbox" checked={sys.autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
-          <span>Start my-whisper when I log in</span>
+          <span>Start Zemzeme when I log in</span>
         </label>
         {#if sys.dev_build}
           <p class="hint">Development build: these point to <code>{sys.exe}</code>. The installed app sets them to itself on start.</p>

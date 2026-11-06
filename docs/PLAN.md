@@ -1,4 +1,4 @@
-# my-whisper — نقشه‌ی کار
+# zemzeme — نقشه‌ی کار
 
 شورتکات بزن → حرف بزن → متن همان جایی که کرسر هست paste شود.
 
@@ -10,7 +10,7 @@
 | سرویس STT | OpenRouter، endpoint `POST /api/v1/audio/transcriptions` (صدا base64) |
 | مدل پیش‌فرض | `openai/gpt-4o-transcribe` (قابل تغییر در تنظیمات، مثلاً `whisper-large-v3-turbo`، `elevenlabs/scribe-v2`) |
 | ضبط صدا | `cpal` → 16kHz mono → WAV در حافظه (بعداً FLAC/Opus) |
-| شورتکات (لینوکس) | Custom Shortcut گنوم → `my-whisper toggle` → پیام به نسخه‌ی در حال اجرا (single-instance) |
+| شورتکات (لینوکس) | Custom Shortcut گنوم → `zemzeme toggle` → پیام به نسخه‌ی در حال اجرا (single-instance) |
 | شورتکات (مک/ویندوز) | `tauri-plugin-global-shortcut` |
 | Paste (لینوکس) | ذخیره‌ی کلیپ‌بورد → `wl-copy` متن → `ydotool` کلید Ctrl+V → برگرداندن کلیپ‌بورد |
 | Paste (مک/ویندوز) | crate `enigo` (Cmd+V / Ctrl+V) |
@@ -40,8 +40,8 @@ src/routes/
 
 ```bash
 PATH=$HOME/.nvm/versions/node/v24.19.0/bin:$HOME/.cargo/bin:$PATH npm run tauri dev
-./src-tauri/target/debug/my-whisper toggle   # شروع/پایان
-./src-tauri/target/debug/my-whisper cancel   # لغو
+./src-tauri/target/debug/zemzeme toggle   # شروع/پایان
+./src-tauri/target/debug/zemzeme cancel   # لغو
 ```
 
 ## مراحل
@@ -55,14 +55,14 @@ PATH=$HOME/.nvm/versions/node/v24.19.0/bin:$HOME/.cargo/bin:$PATH npm run tauri 
 ### فاز ۱ — اسکلت پروژه ✅
 - [x] ساخت پروژه‌ی Tauri 2 + Svelte
 - [x] آیکون tray با منوی Start/Stop، Settings و Quit
-- [x] single-instance + دستورات `my-whisper toggle | cancel | settings | quit`
+- [x] single-instance + دستورات `zemzeme toggle | cancel | settings | quit`
 - [x] overlay پایین وسط مانیتوری که موس رویش است، بدون گرفتن فوکوس
-- **خروجی:** اجرای `my-whisper toggle` در ترمینال به برنامه‌ی در حال اجرا پیام می‌رساند
+- **خروجی:** اجرای `zemzeme toggle` در ترمینال به برنامه‌ی در حال اجرا پیام می‌رساند
 
 ### فاز ۲ — ضبط صدا ✅
-- [x] لیست میکروفون‌ها (`my-whisper mics`) و ضبط از میکروفون انتخاب‌شده (فعلاً با `MY_WHISPER_MIC`)
+- [x] لیست میکروفون‌ها (`zemzeme mics`) و ضبط از میکروفون انتخاب‌شده (فعلاً با `ZEMZEME_MIC`)
 - [x] resample به 16kHz mono، سطح صدا (RMS) برای انیمیشن موج
-- [x] ساخت WAV در حافظه، ذخیره در `~/.cache/dev.hadi.mywhisper/last.wav`
+- [x] ساخت WAV در حافظه، ذخیره در `~/.cache/io.github.mhrezaei.zemzeme/last.wav`
 - [x] ابزار تست: `cargo run --example record -- 5 default out.wav`
 - **یادداشت:** لیست ALSA شلوغ و تکراری است. در فاز ۶ لیست میکروفون‌ها از PipeWire خوانده شود (`wpctl` یا feature `pipewire` در cpal).
 - **یادداشت:** هدست بلوتوث در اولین ضبط حدود ۲ ثانیه طول می‌کشد تا به حالت میکروفون برود.
@@ -86,20 +86,20 @@ PATH=$HOME/.nvm/versions/node/v24.19.0/bin:$HOME/.cargo/bin:$PATH npm run tauri 
 - [x] کیبورد مجازی خود برنامه با `evdev` (به‌جای `ydotool`؛ سرویس جدا لازم نیست)
 - [x] دسترسی به `/dev/uinput` با `scripts/setup-linux.sh` (قانون udev با تگ `uaccess`)
 - [x] کلیپ‌بورد با `arboard` (روی مک و ویندوز هم کار می‌کند): ذخیره، paste، برگرداندن بعد از ۰.۷ ثانیه
-- [x] `MY_WHISPER_PASTE_KEY`: `ctrl+v` | `ctrl+shift+v` | `shift+insert`
+- [x] `ZEMZEME_PASTE_KEY`: `ctrl+v` | `ctrl+shift+v` | `shift+insert`
 - [x] اگر فشردن کلید ممکن نباشد، متن در کلیپ‌بورد می‌ماند و پیام «Copied — press Ctrl+V» نشان داده می‌شود
 - **نتیجه‌ی تست:** با `Super+Alt+Space` متن فارسی در حدود ۲ ثانیه جای کرسر نوشته شد
 
 ### مرحله‌ی پاک‌سازی متن ✅
 - [x] بعد از تبدیل صدا، متن به یک مدل سریع (`google/gemini-3.1-flash-lite`) می‌رود تا اصطلاحات انگلیسی با حروف لاتین نوشته شوند (کامیت → commit، اسپیس → Space)
-- [x] سوییچ روشن/خاموش: `MY_WHISPER_CLEANUP` (پیش‌فرض روشن)، حدود ۱.۵ ثانیه و $0.0001 اضافه
+- [x] سوییچ روشن/خاموش: `ZEMZEME_CLEANUP` (پیش‌فرض روشن)، حدود ۱.۵ ثانیه و $0.0001 اضافه
 - [x] اگر پاک‌سازی خطا بدهد یا جواب نامعقول برگرداند، متن خام استفاده می‌شود
-- [x] لیست واژه‌ها (`MY_WHISPER_VOCAB`) هم به مدل تبدیل صدا و هم به پاک‌سازی داده می‌شود
+- [x] لیست واژه‌ها (`ZEMZEME_VOCAB`) هم به مدل تبدیل صدا و هم به پاک‌سازی داده می‌شود
 - **نتیجه‌ی تست:** prompt خود مدل تبدیل صدا قابل اعتماد نبود؛ مرحله‌ی جدا جواب داد. Claude Haiku هم خوب بود ولی یک کلمه را عوض کرد («صدا» → «فضا»)
 - [x] فایل صدا: فقط در نسخه‌ی توسعه، فقط یک فایل، و بعد از تبدیل موفق پاک می‌شود. نسخه‌ی نهایی صدا را فقط در حافظه نگه می‌دارد
 
 ### فاز ۶ — تنظیمات ✅
-- [x] تنظیمات در `~/.config/dev.hadi.mywhisper/settings.json`، ذخیره‌ی خودکار با هر تغییر و اعمال فوری
+- [x] تنظیمات در `~/.config/io.github.mhrezaei.zemzeme/settings.json`، ذخیره‌ی خودکار با هر تغییر و اعمال فوری
 - [x] کلید API در Keyring سیستم (GNOME Keyring)؛ کلید `.env` خودکار به Keyring منتقل می‌شود
 - [x] دکمه‌ی «Test connection» که مصرف کل و امروز را نشان می‌دهد
 - [x] انتخاب مدل تبدیل صدا و مدل پاک‌سازی (لیست پیشنهادی + دلخواه)، زبان، لیست واژه‌ها
@@ -117,7 +117,7 @@ PATH=$HOME/.nvm/versions/node/v24.19.0/bin:$HOME/.cargo/bin:$PATH npm run tauri 
 
 ### فاز ۸ — صیقل‌کاری ✅
 - [x] صدای کوتاه شروع، پایان و خطا (ساخته‌شده در کد، بدون فایل صوتی)، با سوییچ در تنظیمات
-- [x] لاگ در `~/.local/state/my-whisper/my-whisper.log`، بدون متن گفتار (حداکثر ۱ مگابایت)
+- [x] لاگ در `~/.local/state/zemzeme/zemzeme.log`، بدون متن گفتار (حداکثر ۱ مگابایت)
 - [x] آیکون اختصاصی (میکروفون + کرسر متن)، ساخته با `scripts/make-icon.py`
 - [x] بسته‌ی `.deb` (۵ مگابایت) همراه قانون udev و اسکریپت postinst
 - [x] اولین اجرای نسخه‌ی نصب‌شده، اجرای خودکار با ورود را روشن می‌کند

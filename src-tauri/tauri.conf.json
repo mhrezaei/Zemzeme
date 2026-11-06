@@ -1,8 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "my-whisper",
+  "productName": "Zemzeme",
+  "mainBinaryName": "zemzeme",
   "version": "0.1.0",
-  "identifier": "dev.hadi.mywhisper",
+  "identifier": "io.github.mhrezaei.zemzeme",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +15,7 @@
       {
         "label": "overlay",
         "url": "/overlay",
-        "title": "my-whisper",
+        "title": "Zemzeme",
         "width": 300,
         "height": 72,
         "visible": false,
@@ -30,7 +31,7 @@
       {
         "label": "settings",
         "url": "/settings",
-        "title": "my-whisper — Settings",
+        "title": "Zemzeme — Settings",
         "width": 560,
         "height": 760,
         "visible": false,
@@ -63,7 +64,7 @@
         ],
         "section": "utils",
         "files": {
-          "/usr/lib/udev/rules.d/70-my-whisper-uinput.rules": "../packaging/70-my-whisper-uinput.rules"
+          "/usr/lib/udev/rules.d/70-zemzeme-uinput.rules": "../packaging/70-zemzeme-uinput.rules"
         },
         "postInstallScript": "../packaging/postinst.sh",
         "postRemoveScript": "../packaging/postrm.sh"

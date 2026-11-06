@@ -124,7 +124,7 @@ mod keyboard {
                 keys.insert(k);
             }
             let device = VirtualDevice::builder()
-                .and_then(|b| b.name("my-whisper virtual keyboard").with_keys(&keys))
+                .and_then(|b| b.name("zemzeme virtual keyboard").with_keys(&keys))
                 .and_then(|b| b.build())
                 .map_err(|e| {
                     if e.kind() == std::io::ErrorKind::PermissionDenied {

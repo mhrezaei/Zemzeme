@@ -1,4 +1,4 @@
-//! Log to stderr and to `~/.local/state/my-whisper/my-whisper.log`.
+//! Log to stderr and to `~/.local/state/zemzeme/zemzeme.log`.
 //!
 //! The file never contains what the user said: transcripts are passed to
 //! `private`, which only reaches stderr in development builds.
@@ -17,12 +17,12 @@ pub fn path() -> PathBuf {
     dirs::state_dir()
         .or_else(dirs::data_local_dir)
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("my-whisper")
-        .join("my-whisper.log")
+        .join("zemzeme")
+        .join("zemzeme.log")
 }
 
 fn write(level: &str, msg: &str) {
-    eprintln!("my-whisper: {msg}");
+    eprintln!("zemzeme: {msg}");
     let _guard = LOCK.lock().unwrap();
     let p = path();
     if let Some(dir) = p.parent() {
@@ -50,6 +50,6 @@ pub fn warn(msg: &str) {
 /// User content (transcripts): stderr in dev builds only, never the file.
 pub fn private(msg: &str) {
     if cfg!(debug_assertions) {
-        eprintln!("my-whisper: {msg}");
+        eprintln!("zemzeme: {msg}");
     }
 }

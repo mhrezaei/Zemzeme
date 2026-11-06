@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lets my-whisper press the paste shortcut through a virtual keyboard.
+# Lets zemzeme press the paste shortcut through a virtual keyboard.
 #
 # Grants the logged-in desktop user access to /dev/uinput (via systemd's
 # "uaccess" tag, the same mechanism used for game controllers). No group
@@ -13,10 +13,10 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-RULE=/etc/udev/rules.d/70-my-whisper-uinput.rules
+RULE=/etc/udev/rules.d/70-zemzeme-uinput.rules
 
 cat > "$RULE" <<'EOF'
-# my-whisper: allow the active desktop user to create a virtual keyboard
+# zemzeme: allow the active desktop user to create a virtual keyboard
 KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
 EOF
 
@@ -27,4 +27,4 @@ udevadm trigger --name-match=uinput --action=change
 echo "Wrote $RULE"
 ls -l /dev/uinput
 getfacl -p /dev/uinput 2>/dev/null | grep '^user:' || true
-echo "Done. Restart my-whisper."
+echo "Done. Restart zemzeme."

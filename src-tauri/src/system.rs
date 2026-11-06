@@ -1,7 +1,7 @@
 //! Desktop integration: the global shortcut and starting at login.
 //!
 //! GNOME on Wayland doesn't let apps grab global keys, so the shortcut is a
-//! GNOME custom keyboard shortcut that runs `my-whisper toggle`; the second
+//! GNOME custom keyboard shortcut that runs `zemzeme toggle`; the second
 //! launch forwards the command to the running app (single-instance).
 
 use std::path::PathBuf;
@@ -11,10 +11,10 @@ pub const DEFAULT_SHORTCUT: &str = "<Super><Alt>space";
 
 const MEDIA_KEYS: &str = "org.gnome.settings-daemon.plugins.media-keys";
 const CUSTOM_SCHEMA: &str = "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding";
-const OUR_PATH: &str = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/my-whisper/";
+const OUR_PATH: &str = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/zemzeme/";
 
 fn exe() -> String {
-    std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_else(|_| "my-whisper".into())
+    std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_else(|_| "zemzeme".into())
 }
 
 fn gsettings(args: &[&str]) -> Result<String, String> {
@@ -69,10 +69,23 @@ pub mod shortcut {
             gsettings(&["set", MEDIA_KEYS, "custom-keybindings", &format_list(&list)])?;
         }
         let s = schema();
-        gsettings(&["set", &s, "name", "my-whisper: start / stop recording"])?;
+        gsettings(&["set", &s, "name", "Zemzeme: start / stop recording"])?;
         gsettings(&["set", &s, "command", &format!("{} toggle", exe())])?;
         gsettings(&["set", &s, "binding", binding])?;
         Ok(())
+    }
+
+    /// Removes another custom shortcut entry (the app's old name) and returns
+    /// its keys, or `None` if it isn't registered.
+    pub fn take_legacy(path: &str) -> Option<String> {
+        let mut list = parse_list(&gsettings(&["get", MEDIA_KEYS, "custom-keybindings"]).ok()?);
+        if !list.iter().any(|p| p == path) {
+            return None;
+        }
+        let binding = gsettings(&["get", &format!("{CUSTOM_SCHEMA}:{path}"), "binding"]).map(|b| unquote(&b)).ok();
+        list.retain(|p| p != path);
+        gsettings(&["set", MEDIA_KEYS, "custom-keybindings", &format_list(&list)]).ok()?;
+        binding.filter(|b| !b.is_empty())
     }
 
     /// At startup of an installed (release) build: make sure the shortcut
@@ -96,7 +109,7 @@ pub mod autostart {
     use super::*;
 
     fn path() -> PathBuf {
-        dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")).join("autostart").join("my-whisper.desktop")
+        dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")).join("autostart").join("zemzeme.desktop")
     }
 
     pub fn enabled() -> bool {
@@ -116,8 +129,8 @@ pub mod autostart {
             std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
         }
         let entry = format!(
-            "[Desktop Entry]\nType=Application\nName=my-whisper\nComment=Speech to text at your cursor\n\
-             Exec={}\nIcon=my-whisper\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+            "[Desktop Entry]\nType=Application\nName=Zemzeme\nComment=Speech to text at your cursor\n\
+             Exec={}\nIcon=zemzeme\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
             exe()
         );
         std::fs::write(&p, entry).map_err(|e| e.to_string())

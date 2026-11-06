@@ -1,6 +1,6 @@
 //! App settings.
 //!
-//! Settings live in `~/.config/dev.hadi.mywhisper/settings.json`. The API key
+//! Settings live in `~/.config/zemzeme/settings.json`. The API key
 //! is kept in the OS keyring (GNOME Keyring / macOS Keychain / Windows
 //! Credential Manager), never in the file.
 //!
@@ -19,8 +19,8 @@ pub const DEFAULT_LANGUAGE: &str = "fa";
 /// Fastest and most faithful in our test (1.3–1.7 s, ~$0.0001 per message).
 pub const DEFAULT_CLEANUP_MODEL: &str = "google/gemini-3.1-flash-lite";
 
-const APP_ID: &str = "dev.hadi.mywhisper";
-const KEYRING_SERVICE: &str = "my-whisper";
+const APP_DIR: &str = "zemzeme";
+const KEYRING_SERVICE: &str = "zemzeme";
 const KEYRING_USER: &str = "openrouter-api-key";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -69,7 +69,7 @@ fn parse_bool(v: &str) -> bool {
 }
 
 pub fn settings_path() -> PathBuf {
-    dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")).join(APP_ID).join("settings.json")
+    dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")).join(APP_DIR).join("settings.json")
 }
 
 impl Config {
@@ -101,20 +101,20 @@ impl Config {
         std::fs::write(&path, json).map_err(|e| e.to_string())
     }
 
-    /// Defaults overridden by MY_WHISPER_* variables (first run only).
+    /// Defaults overridden by ZEMZEME_* variables (first run only).
     fn from_env() -> Self {
         let var = |k: &str| std::env::var(k).ok().filter(|v| !v.trim().is_empty());
         let d = Self::default();
         Self {
             api_key: String::new(),
-            model: var("MY_WHISPER_MODEL").unwrap_or(d.model),
-            language: std::env::var("MY_WHISPER_LANG").unwrap_or(d.language),
-            microphone: var("MY_WHISPER_MIC").unwrap_or_default(),
-            paste_key: var("MY_WHISPER_PASTE_KEY").map(|v| PasteKey::parse(&v)).unwrap_or(d.paste_key),
-            cleanup: var("MY_WHISPER_CLEANUP").map(|v| parse_bool(&v)).unwrap_or(d.cleanup),
-            cleanup_model: var("MY_WHISPER_CLEANUP_MODEL").unwrap_or(d.cleanup_model),
-            vocabulary: var("MY_WHISPER_VOCAB").unwrap_or_default(),
-            keep_audio: var("MY_WHISPER_KEEP_AUDIO").map(|v| parse_bool(&v)).unwrap_or(false),
+            model: var("ZEMZEME_MODEL").unwrap_or(d.model),
+            language: std::env::var("ZEMZEME_LANG").unwrap_or(d.language),
+            microphone: var("ZEMZEME_MIC").unwrap_or_default(),
+            paste_key: var("ZEMZEME_PASTE_KEY").map(|v| PasteKey::parse(&v)).unwrap_or(d.paste_key),
+            cleanup: var("ZEMZEME_CLEANUP").map(|v| parse_bool(&v)).unwrap_or(d.cleanup),
+            cleanup_model: var("ZEMZEME_CLEANUP_MODEL").unwrap_or(d.cleanup_model),
+            vocabulary: var("ZEMZEME_VOCAB").unwrap_or_default(),
+            keep_audio: var("ZEMZEME_KEEP_AUDIO").map(|v| parse_bool(&v)).unwrap_or(false),
             sounds: d.sounds,
         }
     }
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn vocabulary_splits_on_commas_and_lines() {
-        assert_eq!(cfg("Tauri, my-whisper،هادی\nDocker").vocabulary_words(), ["Tauri", "my-whisper", "هادی", "Docker"]);
+        assert_eq!(cfg("Tauri, zemzeme،هادی\nDocker").vocabulary_words(), ["Tauri", "zemzeme", "هادی", "Docker"]);
     }
 
     #[test]

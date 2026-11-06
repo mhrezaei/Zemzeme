@@ -1,2 +1,2 @@
-# my-whisper: allow the active desktop user to create a virtual keyboard
+# zemzeme: allow the active desktop user to create a virtual keyboard
 KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"

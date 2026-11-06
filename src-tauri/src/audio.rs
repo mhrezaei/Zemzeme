@@ -197,7 +197,7 @@ impl Recorder {
         let (ready_tx, ready_rx) = mpsc::channel::<Result<(), String>>();
 
         let handle = std::thread::Builder::new()
-            .name("my-whisper-audio".into())
+            .name("zemzeme-audio".into())
             .spawn(move || {
                 let buffer = Arc::new(Mutex::new(Vec::<f32>::with_capacity(48_000 * 60)));
                 let level = Arc::new(AtomicU32::new(0));

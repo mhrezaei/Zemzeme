@@ -1,0 +1,56 @@
+name: Release
+
+# Push a tag like v0.2.0 to build the .deb and publish a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Tag matches app version
+        run: |
+          app=$(jq -r .version src-tauri/tauri.conf.json)
+          if [ "v$app" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match version $app in tauri.conf.json"
+            exit 1
+          fi
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev libasound2-dev libdbus-1-dev libssl-dev
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+      - name: Build .deb
+        run: npm run tauri build
+
+      - name: Checksums
+        working-directory: src-tauri/target/release/bundle/deb
+        run: sha256sum *.deb > SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/deb/SHA256SUMS.txt
+          body_path: .github/release-notes.md
+          generate_release_notes: true

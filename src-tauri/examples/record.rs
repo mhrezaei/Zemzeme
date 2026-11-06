@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use my_whisper_lib::audio::Recorder;
+use zemzeme_lib::audio::Recorder;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

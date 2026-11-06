@@ -1,5 +1,5 @@
 //! Play the start, stop and error chimes: cargo run --example chime
-use my_whisper_lib::sound::{play_blocking, Chime};
+use zemzeme_lib::sound::{play_blocking, Chime};
 
 fn main() {
     for (name, c) in [("start", Chime::Start), ("stop", Chime::Stop), ("error", Chime::Error)] {

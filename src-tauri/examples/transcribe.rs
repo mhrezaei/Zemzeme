@@ -1,12 +1,12 @@
 //! Send an audio file to OpenRouter and print the transcript, before and
 //! after the cleanup step.
 //! cargo run --example transcribe -- <file> [model] [language]
-//! Reads OPENROUTER_API_KEY (and the other MY_WHISPER_* settings) from the
+//! Reads OPENROUTER_API_KEY (and the other ZEMZEME_* settings) from the
 //! environment or `.env`.
 
-use my_whisper_lib::config::{self, Config};
-use my_whisper_lib::pipeline;
-use my_whisper_lib::stt::{OpenRouter, SpeechToText};
+use zemzeme_lib::config::{self, Config};
+use zemzeme_lib::pipeline;
+use zemzeme_lib::stt::{OpenRouter, SpeechToText};
 
 fn main() {
     config::load_dotenv();

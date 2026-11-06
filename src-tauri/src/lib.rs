@@ -1,6 +1,7 @@
 pub mod audio;
 pub mod config;
 pub mod inject;
+mod legacy;
 pub mod log;
 mod overlay;
 pub mod pipeline;
@@ -18,7 +19,7 @@ use tauri::{
 
 use state::{AppState, Phase};
 
-/// Commands accepted on the command line, e.g. `my-whisper toggle`.
+/// Commands accepted on the command line, e.g. `zemzeme toggle`.
 /// A second launch forwards its arguments to the running instance.
 fn handle_cli(app: &AppHandle, args: &[String]) {
     match args.get(1).map(String::as_str) {
@@ -68,7 +69,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
     TrayIconBuilder::with_id("main")
         .icon(app.default_window_icon().unwrap().clone())
-        .tooltip("my-whisper")
+        .tooltip("Zemzeme")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -112,6 +113,7 @@ pub fn run() {
             settings_cmd::set_autostart,
         ])
         .setup(|app| {
+            legacy::migrate();
             // First start of an installed build (e.g. from the .deb): start at login by default.
             if !cfg!(debug_assertions) && !config::settings_path().exists() {
                 if let Err(e) = system::autostart::set(true) {
@@ -121,7 +123,7 @@ pub fn run() {
             log::info(&format!("started v{}", env!("CARGO_PKG_VERSION")));
             build_tray(app.handle())?;
             system::shortcut::ensure();
-            // Allow `my-whisper toggle` as the very first launch too.
+            // Allow `zemzeme toggle` as the very first launch too.
             let args: Vec<String> = std::env::args().collect();
             handle_cli(app.handle(), &args);
             Ok(())

@@ -105,7 +105,7 @@ impl SpeechToText for OpenRouter {
         let resp = client
             .post(format!("{}/audio/transcriptions", self.base_url))
             .bearer_auth(self.api_key.trim())
-            .header("X-Title", "my-whisper")
+            .header("X-Title", "Zemzeme")
             .json(&body)
             .send()
             .map_err(|e| {

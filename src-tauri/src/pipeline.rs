@@ -117,7 +117,7 @@ fn cleanup(text: &str, cfg: &Config) -> Result<String, String> {
         .map_err(|e| e.to_string())?
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(cfg.api_key.trim())
-        .header("X-Title", "my-whisper")
+        .header("X-Title", "Zemzeme")
         .json(&body)
         .send()
         .map_err(|e| e.to_string())?;
