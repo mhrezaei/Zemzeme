@@ -1,6 +1,6 @@
 {
   "name": "zemzeme",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Press a shortcut, speak, and the text is typed at your cursor.",
   "private": true,
   "repository": "github:mhrezaei/Zemzeme",

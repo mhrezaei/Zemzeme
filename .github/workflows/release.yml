@@ -51,10 +51,18 @@ jobs:
         working-directory: src-tauri/target/release/bundle/deb
         run: sha256sum *.deb > SHA256SUMS.txt
 
+      - name: Release notes
+        run: |
+          # This version's section of CHANGELOG.md, then the install instructions.
+          awk -v v="## ${GITHUB_REF_NAME#v}" '$0==v {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "::error::No '## ${GITHUB_REF_NAME#v}' section in CHANGELOG.md"; exit 1; }
+          printf '\n' >> notes.md
+          cat .github/release-notes.md >> notes.md
+
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/deb/SHA256SUMS.txt
-          body_path: .github/release-notes.md
+          body_path: notes.md
           generate_release_notes: true

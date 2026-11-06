@@ -1,6 +1,6 @@
 [package]
 name = "zemzeme"
-version = "0.1.0"
+version = "0.1.1"
 description = "Speech to text at your cursor"
 authors = ["Mohammad Hadi Rezaei"]
 license = "MIT"
